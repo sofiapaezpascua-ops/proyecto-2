@@ -192,9 +192,148 @@ app.layout = html.Div(children=[
                            "marginTop": "1rem"
                        }]) 
             #Generar el mapa 
-            htlm
+            htlm.Div([
+                    htlm.div([id="price-info",
+                              style={"fontSize": "18px","marginBottom": "1rem","padding": "1rem","backgroundColor": "white","borderRadius": "5px"
+                    }),
+                    dcc.Graph(
+                        id="price-map",
+                        style={"height": "70vh"})
+                    ], style={ "width": "60%","padding": "2rem"})
+                    ], style={"display": "flex", "gap": "2rem", "padding": "2rem"})
+                        
+@app.callback(
+    [Output("price-map", "figure"),
+     Output("price-info", "children")],
+    Input("predict-button", "n_clicks"),
+    [State("property-type", "value"),
+     State("input-bathrooms", "value"),
+     State("input-beds", "value"),
+     State("input-rating", "value"),
+     State("input-minimum_nights", "value"),
+     State("input-availability_365d", "value"),
+     State("input-host_acceptance_rate", "value"),
+     State("amenities", "value")]
+)
+def generate_price_map(n_clicks, prop_type, bathrooms, beds, rating, 
+                       min_nights, availability, host_rate, amenities):
+    
+    if n_clicks == 0:
+        # Mapa inicial vacío
+        fig = go.Figure()
+        fig.update_layout(
+            title="Presiona 'Generar Mapa' para ver predicciones",
+            xaxis_title="Longitud",
+            yaxis_title="Latitud",
+            height=600
+        )
+        return fig, 
+    
+    # Crear grid de coordenadas (ajustado a las coordenadas de madrid)
+    lat_min, lat_max = 40.35, 40.50
+    lon_min, lon_max = -3.75, -3.60
+    
+    # Crear grid más denso para mejor visualización
+    lats = np.linspace(lat_min, lat_max, 30)
+    lons = np.linspace(lon_min, lon_max, 30)
+    
+    lon_grid, lat_grid = np.meshgrid(lons, lats)
+    
+    # Preparar características base
+    wifi = 1 if "Wifi" in amenities else 0
+    kitchen = 1 if "Kitchen_and_dining" in amenities else 0
+    tv = 1 if "TV" in amenities else 0
+    fridge = 1 if "Refrigerator" in amenities else 0
+    essentials = 1 if "Essentials" in amenities else 0
+    
+    # Crear dataset para predicciones
+    predicciones = []
+    coords = []
+    
+    for lat in lats:
+        for lon in lons:
+            # Crear fila con todas las características
+            fila = [
+                host_rate,  # host_acceptance_rate
+                lon,  # longitude
+                lat,  # latitude
+                bathrooms,  # bathrooms
+                beds,  # beds
+                min_nights,  # minimum_nights
+                availability,  # availability_365d
+                availability * 0.7,  # estimated_occupancy_365d (estimado)
+                rating,  # review_scores_rating
+                rating,  # review_scores_cleanliness
+                rating,  # review_scores_communication
+                rating,  # review_scores_value
+                wifi,
+                kitchen,
+                tv,
+                fridge,
+                essentials,
+                property_entire,
+                property_other,
+                property_shared
+            ]
+            
+            coords.append((lat, lon))
+            
+            # PREDICCIÓN CON TU MODELO
+            
+            x_row = np.array([[fila[col] for col in feature_cols]], dtype="float32")
+            precio_pred = float(model.predict(x_row, verbose=0)[0, 0])
 
-])
+            predicciones.append(max(precio_pred, 7))
+    
+    
+    # Crear mapa con densidad de colores
+    fig = px.density_mapbox(
+        df_map,
+        lat='latitude',
+        lon='longitude',
+        z='precio_pred',
+        radius=20,
+        center=dict(lat=(lat_min + lat_max)/2, lon=(lon_min + lon_max)/2),
+        zoom=11,
+        mapbox_style="open-street-map",
+        color_continuous_scale="RdYlGn_r",  # Rojo (caro) a Verde (barato)
+        title="Predicción de Precios por Ubicación",
+        labels={'precio': 'Precio (USD/noche)'}
+    )
+    
+    fig.update_layout(
+        height=600,
+        margin={"r": 0, "t": 40, "l": 0, "b": 0}
+    )
+    
+    # Información de resumen
+    precio_min = df_map['precio_pred'].min()
+    precio_max = df_map['precio_pred'].max()
+    precio_prom = df_map['precio_pred'].mean()
+    
+    info = html.Div([
+        html.H4("Resumen de Predicciones", style={"margin": "0 0 1rem 0"}),
+        html.Div([
+            html.Span("Precio Promedio: ", style={"fontWeight": "bold"}),
+            html.Span(f"${precio_prom:.2f}/noche", style={"color": "#4CAF50"})
+        ]),
+        html.Div([
+            html.Span("Precio Mínimo: ", style={"fontWeight": "bold"}),
+            html.Span(f"${precio_min:.2f}/noche")
+        ]),
+        html.Div([
+            html.Span("Precio Máximo: ", style={"fontWeight": "bold"}),
+            html.Span(f"${precio_max:.2f}/noche")
+        ])
+    ])
+    
+    return fig, info
+
+if __name__ == "__main__":
+    app.run_server(debug=True)
+
+        
+
     
 
   
