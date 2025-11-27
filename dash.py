@@ -68,10 +68,10 @@ app.layout = html.Div(children=[
     html.H1(children="Predicción de Precios de Airbnb con Red Neuronal", 
             style={"textAlign": "center"}),
     #Inputs que describen el alojamiento
-    htlm.Div([ htlm.H3("Seleccione las características del alojamiento:")]),
+    htlm.Div([ htlm.H3("Seleccione las características del alojamiento:"),
         html.Div([ 
                   htlm.Div([
-                      htlm.Label("número de baños")
+                      htlm.Label("número de baños"),
                       dcc.Slider(
                           id="bathrooms",
                           min=0,
@@ -79,10 +79,10 @@ app.layout = html.Div(children=[
                           step=1,
                           value=1,
                           marks={i: str(i) for i in range(0, 20, 2)},
-                      ),
-                  ])
+                      )
+                  ]),
                   htlm.Div([
-                      htlm.Label("número de camas")
+                      htlm.Label("número de camas"),
                         dcc.Slider(
                             id="beds",
                             min=0,
@@ -91,9 +91,9 @@ app.layout = html.Div(children=[
                             value=1,
                             marks={i: str(i) for i in range(0, 41, 5)},
                         ),
-                  ])
+                  ]),
                     htlm.Div([
-                        htlm.Label("mínimo de noches")
+                        htlm.Label("mínimo de noches"),
                             dcc.Slider(
                                 id="minimum_nights",
                                 min=1,
@@ -102,27 +102,27 @@ app.layout = html.Div(children=[
                                 value=1,
                                 marks={i: str(i) for i in range(1, 367, 30)},
                             ),
-                            ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("disponibilidad ")
+                        htlm.Label("disponibilidad "),
                             dcc.Input(
                                 id="availability_365",
                                 type = "number",
                                 min=1,
                                 max=365,
                                 value=300),
-                            ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("ocupación estimada ")
+                        htlm.Label("ocupación estimada "),
                             dcc.Input(
                                 id="estimated_occupancy_l365d",
                                 type = "number",
                                 min=1,
                                 max=255,
                                 value=200),
-                    ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("puntuación de limpieza")
+                        htlm.Label("puntuación de limpieza"),
                             dcc.Slider(
                                 id="review_scores_cleanliness",
                                 min=1,
@@ -131,9 +131,9 @@ app.layout = html.Div(children=[
                                 value=3,
                                 marks={i: str(i) for i in range(1, 6)},
                             ),
-                    ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("puntuación de comunicación")
+                        htlm.Label("puntuación de comunicación"),
                             dcc.Slider(
                                 id="review_scores_communication",
                                 min=1,
@@ -142,9 +142,9 @@ app.layout = html.Div(children=[
                                 value=3,
                                 marks={i: str(i) for i in range(1, 6)},
                             ),
-                    ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("puntuación de valor")
+                        htlm.Label("puntuación de valor"),
                             dcc.Slider(
                                 id="review_scores_value",
                                 min=1,
@@ -153,9 +153,9 @@ app.layout = html.Div(children=[
                                 value=3,
                                 marks={i: str(i) for i in range(1, 6)},
                             ),
-                    ])
+                            ]),
                     htlm.Div([
-                        htlm.Label("Seleccione las ameniades:")
+                        htlm.Label("Seleccione las ameniades:"),
                         dcc.Checklist(
                             id="amenities",
                             options=[
@@ -167,20 +167,20 @@ app.layout = html.Div(children=[
                             ],
                             value=["Wifi", "Kitchen_and_dining", "TV", "Refrigerator", "Essentials"],
                         ),
-                    ])
+                        ]),
                     htlm.Div([
-                        htlm.Label("Tasa de aceptación del anfitrión (%)"), style={"fontWeight": "bold"}),
+                        htlm.Label("Tasa de aceptación del anfitrión (%)", style={"fontWeight": "bold"}),
                         dcc.Input(id="input-host_acceptance_rate", 
                                   type="number", 
                                   value=90, 
                                   min=0, 
                                   max=100,
-                             style={"width": "100%", "padding": "0.5rem"}
-                    ])
-                    htlm.Button([ "Predecir Precio"
-                                 id = "predict-button",
-                                 n_clicks=0
-                                 style={
+                             style={"width": "100%", "padding": "0.5rem"})
+                        ]),
+                    htlm.Button([ "Predecir Precio"],
+                                 id := "predict-button",
+                                 n_clicks :=0,
+                                 style :={
                            "width": "100%",
                            "padding": "1rem",
                            "fontSize": "18px",
@@ -190,18 +190,19 @@ app.layout = html.Div(children=[
                            "borderRadius": "5px",
                            "cursor": "pointer",
                            "marginTop": "1rem"
-                       }]) 
+                       }),
             #Generar el mapa 
             htlm.Div([
                     htlm.div([id="price-info",
                               style={"fontSize": "18px","marginBottom": "1rem","padding": "1rem","backgroundColor": "white","borderRadius": "5px"
-                    }),
+                    },
                     dcc.Graph(
                         id="price-map",
                         style={"height": "70vh"})
                     ], style={ "width": "60%","padding": "2rem"})
                     ], style={"display": "flex", "gap": "2rem", "padding": "2rem"})
-                        
+    ])   
+])
 @app.callback(
     [Output("price-map", "figure"),
      Output("price-info", "children")],
@@ -326,11 +327,11 @@ def generate_price_map(n_clicks, prop_type, bathrooms, beds, rating,
             html.Span(f"${precio_max:.2f}/noche")
         ])
     ])
+]) 
     
     return fig, info
 
-if __name__ == "__main__":
-    app.run_server(debug=True)
+if __name__ == "__main__":app.run_server(debug=True)
 
         
 
