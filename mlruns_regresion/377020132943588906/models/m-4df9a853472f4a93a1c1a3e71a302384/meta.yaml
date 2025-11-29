@@ -1,0 +1,10 @@
+artifact_location: file:///Users/macbookair/Desktop/proyecto 2/mlruns_regresion/377020132943588906/models/m-4df9a853472f4a93a1c1a3e71a302384/artifacts
+creation_timestamp: 1764458685830
+experiment_id: '377020132943588906'
+last_updated_timestamp: 1764458710612
+model_id: m-4df9a853472f4a93a1c1a3e71a302384
+model_type: null
+name: model
+source_run_id: 437c2bf8c58b4e829e28e761453ef740
+status: 2
+status_message: null
