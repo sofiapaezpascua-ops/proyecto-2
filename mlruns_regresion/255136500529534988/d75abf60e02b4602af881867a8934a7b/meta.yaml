@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/macbookair/Desktop/proyecto 2/mlruns_regresion/255136500529534988/d75abf60e02b4602af881867a8934a7b/artifacts
+end_time: 1764451265498
+entry_point_name: ''
+experiment_id: '255136500529534988'
+lifecycle_stage: active
+run_id: d75abf60e02b4602af881867a8934a7b
+run_name: RUN_DNN_REGRESION 8
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1764451069383
+status: 3
+tags: []
+user_id: macbookair

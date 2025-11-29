@@ -1,0 +1,22 @@
+artifact_path: file:///Users/macbookair/Desktop/proyecto 2/mlruns_regresion/255136500529534988/models/m-9a92424dcc5242a5b0ffd9d050f1b5dc/artifacts
+flavors:
+  python_function:
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.tensorflow
+    python_version: 3.11.9
+  tensorflow:
+    code: null
+    data: data
+    keras_version: 2.16.2
+    model_type: keras
+    save_format: tf
+mlflow_version: 3.6.0
+model_id: m-9a92424dcc5242a5b0ffd9d050f1b5dc
+model_size_bytes: 37925
+model_uuid: m-9a92424dcc5242a5b0ffd9d050f1b5dc
+prompts: null
+run_id: 23c323d5976e44689363401198f0b76d
+utc_time_created: '2025-11-29 18:47:09.543655'
