@@ -287,78 +287,39 @@ def generate_price_map(n_clicks, prop_type, bathrooms, beds, rating,
     predicciones = []
     coords = []
     
-for lat in lats:
-    for lon in lons:
-        # Valores "típicos" para columnas que no controlamos desde la interfaz
-        id_value = 0
-        host_response_rate = host_rate          # aprox, lo igualamos
-        accommodates = max(1, beds)             # aprox: caben tantas personas como camas
-        bedrooms = max(1, int(round(beds / 2))) # aprox: mitad de camas
-        maximum_nights = 365
-        number_of_reviews = 10
-        estimated_revenue_l365d = 0
-        review_scores_accuracy = rating
-        review_scores_checkin = rating
-        review_scores_location = rating
-        reviews_per_month = 1
-        air_conditioning = 0
-        washer_dryer = 0
-        safe = 0
-        smoke_alarm = 0
-        services = 0
-        property_hotel_room = 0
-        property_private_room = 0   # no lo usas en el dropdown
-
-        # IMPORTANTE: MISMO ORDEN QUE x_train.columns
-        fila = [
-            id_value,                # id
-            host_response_rate,      # host_response_rate
-            host_rate,               # host_acceptance_rate
-            lat,                     # latitude
-            lon,                     # longitude
-            accommodates,            # accommodates
-            bathrooms,               # bathrooms
-            bedrooms,                # bedrooms
-            beds,                    # beds
-            min_nights,              # minimum_nights
-            maximum_nights,          # maximum_nights
-            availability,            # availability_365
-            number_of_reviews,       # number_of_reviews
-            availability * 0.7,      # estimated_occupancy_l365d
-            estimated_revenue_l365d, # estimated_revenue_l365d
-            rating,                  # review_scores_rating
-            review_scores_accuracy,  # review_scores_accuracy
-            rating,                  # review_scores_cleanliness
-            review_scores_checkin,   # review_scores_checkin
-            rating,                  # review_scores_communication
-            review_scores_location,  # review_scores_location
-            rating,                  # review_scores_value
-            reviews_per_month,       # reviews_per_month
-            wifi,                    # Wifi
-            air_conditioning,        # Air_conditioning
-            kitchen,                 # Kitchen_and_dining
-            washer_dryer,            # Washer_dryer
-            tv,                      # TV
-            safe,                    # Safe
-            fridge,                  # Refrigerator
-            smoke_alarm,             # Smoke_alarm_home_safety
-            essentials,              # Essentials
-            services,                # Services
-            property_entire,         # property_Entire_Place
-            property_hotel_room,     # property_Hotel_Room
-            property_other,          # property_Other
-            property_private_room,   # property_Private_Room
-            property_shared          # property_Shared_Room
-        ]
-
-        coords.append((lat, lon))
-
-        # PREDICCIÓN CON TU MODELO
-        x_row = np.array([fila], dtype="float32")
-        precio_pred = float(modelo_regresion.predict(x_row, verbose=0)[0, 0])
-
-        predicciones.append(max(precio_pred, 7))
-
+    for lat in lats:
+        for lon in lons:
+            # Crear fila con todas las características
+            fila = [
+                host_rate,  # host_acceptance_rate
+                lon,  # longitude
+                lat,  # latitude
+                bathrooms,  # bathrooms
+                beds,  # beds
+                min_nights,  # minimum_nights
+                availability,  # availability_365
+                availability * 0.7,  # estimated_occupancy_l365d (estimado)
+                rating,  # review_scores_rating
+                rating,  # review_scores_cleanliness
+                rating,  # review_scores_communication
+                rating,  # review_scores_value
+                wifi,
+                kitchen,
+                tv,
+                fridge,
+                essentials,
+                property_entire,
+                property_other,
+                property_shared
+            ]
+            
+            coords.append((lat, lon))
+            
+            # PREDICCIÓN CON TU MODELO
+            x_row = np.array([fila], dtype="float32")
+            precio_pred = float(modelo_regresion.predict(x_row, verbose=0)[0, 0])
+            
+            predicciones.append(max(precio_pred, 7))
     
     # Crear DataFrame para el mapa
     df_map = pd.DataFrame({
@@ -413,6 +374,12 @@ for lat in lats:
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+    
+
+  
+
+
 
     
 
