@@ -1,108 +1,44 @@
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
+import os
+import warnings
 import dash
 from dash import dcc, html, Input, Output, State
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import tensorflow as tf
 
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  
-import warnings
-warnings.filterwarnings('ignore')
 
-app = dash.Dash(__name__)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+warnings.filterwarnings("ignore")
 
-# Cargar datos
-df = pd.read_csv('listings_limpio.csv')
+# caragar los modelos y datos necesarios
 
-# Columnas a utilizar
-columnas = [
-    "host_acceptance_rate",
-    "host_response_rate",
-    "longitude",
-    "latitude",
-    "bathrooms",
-    "beds",
-    "bedrooms",
-    "accommodates",
-    "minimum_nights",
-    "maximum_nights",
-    "availability_365",
-    "estimated_occupancy_l365d",
-    "estimated_revenue_l365d",
-    "number_of_reviews",
-    "reviews_per_month",
-    "review_scores_rating",
-    "review_scores_cleanliness",
-    "review_scores_accuracy",
-    "review_scores_checkin",
-    "review_scores_communication",
-    #"review_scores_location",
-    "review_scores_value",
-    "Wifi",
-    "Kitchen_and_dining",
-    "TV",
-    "Refrigerator",
-    "Essentials",
-    "Air_conditioning",
-    "Washer_dryer",
-    "Safe",
-    "Smoke_alarm_home_safety",
-    "Services",
-    "property_Entire_Place",
-    "property_Other",
-    "property_Shared_Room",
-    "property_Hotel_Room",
-    "property_Private_Room",
-]
+df = pd.read_csv("listings_limpio.csv")
 
+#Definir la función de elu+1
 
-input_config = {
-    "host_acceptance_rate": (0, 100, 0.1, "%"),
-    "host_response_rate": (0, 100, 0.1, "%"),
-    "bathrooms": (0, 19, 1, ""),
-    "beds": (0, 40, 1, ""),
-    "bedrooms": (0, 25, 1, ""),
-    "accommodates": (1, 16, 1, " personas"),
-    "minimum_nights": (1, 366, 1, " noches"),
-    "maximum_nights": (1, 1125, 1, " noches"),
-    "availability_365": (1, 365, 1, " días"),
-    "estimated_occupancy_l365d": (1, 255, 1, " días"),
-    "estimated_revenue_l365d": (7, 10000, 1, " USD"),
-    "number_of_reviews": (0, 500, 1, ""),
-    "reviews_per_month": (0, 10, 0.1, ""),
-    "review_scores_rating": (1, 5, 0.1, "/5"),
-    "review_scores_cleanliness": (1, 5, 0.1, "/5"),
-    "review_scores_accuracy": (1, 5, 0.1, "/5"),
-    "review_scores_checkin": (1, 5, 0.1, "/5"),
-    "review_scores_communication": (1, 5, 0.1, "/5"),
-    "review_scores_value": (1, 5, 0.1, "/5"),
-    "Wifi": (0, 1, 1, ""),
-    "Kitchen_and_dining": (0, 1, 1, ""),
-    "TV": (0, 1, 1, ""),
-    "Refrigerator": (0, 1, 1, ""),
-    "Essentials": (0, 1, 1, ""),
-    "Air_conditioning": (0, 1, 1, ""),
-    "Washer_dryer": (0, 1, 1, ""),
-    "Safe": (0, 1, 1, ""),
-    "Smoke_alarm_home_safety": (0, 1, 1, ""),
-    "Services": (0, 1, 1, ""),
-    "property_Entire_Place": (0, 1, 1, ""),
-    "property_Other": (0, 1, 1, ""),
-    "property_Shared_Room": (0, 1, 1, ""),
-    "property_Hotel_Room": (0, 1, 1, ""),
-    "property_Private_Room": (0, 1, 1, ""),
-}
-
-#Traer la definicion de la funcion elu
 def elu_plus_one(x):
     return tf.keras.activations.elu(x) + 1.0
 
-# Cargar modelo
-modelo_regresion = tf.keras.models.load_model("modelo_airbnb.keras",custom_objects={"elu_plus_one": elu_plus_one},compile=False)
+# Modelo de regresión
+modelo_regresion = tf.keras.models.load_model(
+    "red neuronal_airbnb.h5",custom_objects={"elu_plus_one": elu_plus_one}, compile=False
+)
 
-#Definir la estructura del dash 
+# Modelo de clasificación
+modelo_clasificacion = tf.keras.models.load_model(
+    "modelo_clasificacion_andes.h5", compile=False
+)
+
+
+NEIGH_DEFAULT = df["neighbourhood_cleansed"].mode()[0]
+
+
+
+app = dash.Dash(__name__)
+
+# Layout del dashboard
 app.layout = html.Div(
     style={
         "backgroundColor": "#f5f7fa",
@@ -124,7 +60,7 @@ app.layout = html.Div(
                 "gap": "32px",
             },
             children=[
-                # --------- COLUMNA IZQUIERDA (CONTROLES) ----------
+            
                 html.Div(
                     style={
                         "width": "35%",
@@ -145,7 +81,8 @@ app.layout = html.Div(
                             },
                         ),
                         html.P(
-                            "Ajusta las características del alojamiento y genera el mapa de precios estimados.",
+                            "Primero se estima el precio por noche (regresión) y, más abajo, "
+                            "la probabilidad de obtener una puntuación alta (clasificación).",
                             style={
                                 "color": "#555",
                                 "fontSize": "13px",
@@ -153,6 +90,7 @@ app.layout = html.Div(
                             },
                         ),
 
+                        # 1. Tipo de alojamiento
                         html.H4("1. Tipo de alojamiento", style={"marginTop": "10px"}),
                         html.Div(
                             style={
@@ -180,6 +118,7 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 2. Capacidad y distribución
                         html.H4("2. Capacidad y distribución"),
                         html.Div(
                             style={
@@ -230,6 +169,7 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 3. Estancia y ocupación
                         html.H4("3. Estancia y ocupación"),
                         html.Div(
                             style={
@@ -270,6 +210,7 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 4. Reseñas y puntuaciones
                         html.H4("4. Reseñas y puntuaciones"),
                         html.Div(
                             style={
@@ -339,6 +280,7 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 5. Anfitrión e ingresos
                         html.H4("5. Anfitrión e ingresos"),
                         html.Div(
                             style={
@@ -367,7 +309,16 @@ app.layout = html.Div(
                                     style={"width": "100%"},
                                 ),
                                 html.Br(), html.Br(),
-                                html.Label("Ingresos estimados últimos 365 días"),
+                                html.Label("Precio actual por noche (€)"),
+                                dcc.Input(
+                                    id="input-price",
+                                    type="number",
+                                    min=0,
+                                    value=100,
+                                    style={"width": "100%"},
+                                ),
+                                html.Br(), html.Br(),
+                                html.Label("Ingresos estimados últimos 365 días (€)"),
                                 dcc.Input(
                                     id="input-estimated_revenue_l365d",
                                     type="number",
@@ -378,6 +329,7 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 6. Amenidades
                         html.H4("6. Amenidades"),
                         html.Div(
                             style={
@@ -412,10 +364,56 @@ app.layout = html.Div(
                             ],
                         ),
 
+                        # 7. Datos necesarios para clasificación
+                        html.H4(
+                            "Predicción de rating (modelo de clasificación)",
+                            style={"marginTop": "14px"},
+                        ),
+                        html.Div(
+                            style={
+                                "border": "1px solid #e3e6ee",
+                                "borderRadius": "10px",
+                                "padding": "10px 12px",
+                            },
+                            children=[
+                                html.P(
+                                    "Esta sección usa un segundo modelo para estimar la "
+                                    "probabilidad de que el anuncio tenga rating ≥ 4.8.",
+                                    style={"fontSize": "12px", "color": "#555"},
+                                ),
+                                html.Label("Latitud del anuncio"),
+                                dcc.Input(
+                                    id="input-latitude",
+                                    type="number",
+                                    value=40.42,
+                                    step=0.0001,
+                                    style={"width": "100%"},
+                                ),
+                                html.Br(), html.Br(),
+                                html.Label("Longitud del anuncio"),
+                                dcc.Input(
+                                    id="input-longitude",
+                                    type="number",
+                                    value=-3.70,
+                                    step=0.0001,
+                                    style={"width": "100%"},
+                                ),
+                                html.P(
+                                    "La probabilidad de cada clase se muestra en la gráfica "
+                                    "de barras debajo del mapa.",
+                                    style={
+                                        "fontSize": "11px",
+                                        "color": "#777",
+                                        "marginTop": "8px",
+                                    },
+                                ),
+                            ],
+                        ),
+
                         html.Br(),
 
                         html.Button(
-                            "Generar mapa de precios",
+                            "Generar mapa y predicción",
                             id="predict-button",
                             n_clicks=0,
                             style={
@@ -434,7 +432,7 @@ app.layout = html.Div(
                     ],
                 ),
 
-               
+                # Columna con mapa y grafico de barras
                 html.Div(
                     style={
                         "width": "65%",
@@ -456,6 +454,10 @@ app.layout = html.Div(
                                 "fontSize": "14px",
                             },
                         ),
+                        dcc.Graph(
+                            id="class-probs-graph",
+                            style={"height": "280px"},
+                        ),
                     ],
                 ),
             ],
@@ -464,42 +466,32 @@ app.layout = html.Div(
 )
 
 
+# CALLBACK: Red neuronal regresión
 
-def score_location_from_coords(lat, lon):
-   
-        
-        center_lat, center_lon = 40.4168, -3.7038
 
-        dist = np.sqrt((lat - center_lat) ** 2 + (lon - center_lon) ** 2)
-
-       
-        score = 5 - dist / 0.03
-        return float(np.clip(score, 1.0, 5.0))
 
 @app.callback(
     [Output("price-map", "figure"),
      Output("price-info", "children")],
     Input("predict-button", "n_clicks"),
-    [
-        State("property-type", "value"),
-        State("input-bathrooms", "value"),
-        State("input-beds", "value"),
-        State("input-bedrooms", "value"),
-        State("input-accommodates", "value"),
-        State("input-rating", "value"),
-        State("input-review_scores_cleanliness", "value"),
-        State("input-review_scores_accuracy", "value"),
-        State("input-review_scores_checkin", "value"),
-        State("input-minimum_nights", "value"),
-        State("input-maximum_nights", "value"),
-        State("input-availability_365d", "value"),
-        State("input-number_of_reviews", "value"),
-        State("input-estimated_revenue_l365d", "value"),
-        State("input-host_acceptance_rate", "value"),
-        State("input-host_response_rate", "value"),
-        State("input-reviews_per_month", "value"),
-        State("amenities", "value"),
-    ],
+    State("property-type", "value"),
+    State("input-bathrooms", "value"),
+    State("input-beds", "value"),
+    State("input-bedrooms", "value"),
+    State("input-accommodates", "value"),
+    State("input-rating", "value"),
+    State("input-review_scores_cleanliness", "value"),
+    State("input-review_scores_accuracy", "value"),
+    State("input-review_scores_checkin", "value"),
+    State("input-minimum_nights", "value"),
+    State("input-maximum_nights", "value"),
+    State("input-availability_365d", "value"),
+    State("input-number_of_reviews", "value"),
+    State("input-estimated_revenue_l365d", "value"),
+    State("input-host_acceptance_rate", "value"),
+    State("input-host_response_rate", "value"),
+    State("input-reviews_per_month", "value"),
+    State("amenities", "value"),
 )
 def generate_price_map(
     n_clicks,
@@ -525,31 +517,30 @@ def generate_price_map(
     if n_clicks == 0:
         fig = go.Figure()
         fig.update_layout(
-            title="Presiona 'Generar Mapa' para ver predicciones",
+            title="Presiona 'Generar mapa y predicción' para ver resultados",
             xaxis_title="Longitud",
             yaxis_title="Latitud",
             height=600,
         )
         return fig, "Esperando entrada..."
 
-    # Rango de coordenadas
-    lat_min, lat_max = 40.35, 40.50
-    lon_min, lon_max = -3.75, -3.60
-
-    lats = np.linspace(lat_min, lat_max, 30)
-    lons = np.linspace(lon_min, lon_max, 30)
+    if amenities is None:
+        amenities = []
 
     # Amenidades -> dummies
-    wifi = 1 if "Wifi" in amenities else 0
-    kitchen = 1 if "Kitchen_and_dining" in amenities else 0
-    air = 1 if "Air_conditioning" in amenities else 0
-    washer_dryer = 1 if "Washer_dryer" in amenities else 0
-    tv = 1 if "TV" in amenities else 0
-    safe = 1 if "Safe" in amenities else 0
-    fridge = 1 if "Refrigerator" in amenities else 0
-    smoke_alarm = 1 if "Smoke_alarm_home_safety" in amenities else 0
-    essentials = 1 if "Essentials" in amenities else 0
-    services = 1 if "Services" in amenities else 0
+    def flag(name):
+        return 1 if name in amenities else 0
+
+    wifi = flag("Wifi")
+    kitchen = flag("Kitchen_and_dining")
+    air = flag("Air_conditioning")
+    washer_dryer = flag("Washer_dryer")
+    tv = flag("TV")
+    safe = flag("Safe")
+    fridge = flag("Refrigerator")
+    smoke_alarm = flag("Smoke_alarm_home_safety")
+    essentials = flag("Essentials")
+    services = flag("Services")
 
     # Tipo de propiedad -> one hot
     property_entire = 1 if prop_type == "entire" else 0
@@ -558,23 +549,27 @@ def generate_price_map(
     property_hotel = 1 if prop_type == "hotel" else 0
     property_other = 1 if prop_type == "other" else 0
 
-    # Otras puntuaciones derivadas del rating general
+    # Algunas puntuaciones derivadas
     comm_score = rating
     value_score = rating
+
+    # Rango de coordenadas para el mapa (puedes ajustarlo a tu ciudad)
+    lat_min, lat_max = 40.35, 40.50
+    lon_min, lon_max = -3.75, -3.60
+
+    lats = np.linspace(lat_min, lat_max, 30)
+    lons = np.linspace(lon_min, lon_max, 30)
 
     predicciones = []
     coords = []
 
     for lat in lats:
         for lon in lons:
-            # review_scores_location calculado a partir de lat/lon
-            loc_score = score_location_from_coords(lat, lon)
-
-            # estimated_occupancy_l365d aprox: 70% de días disponibles
+            # Estimación simple de ocupación (si quieres puedes mejorarla)
             est_occupancy = availability * 0.7
 
             fila = [
-                
+                # 37 features (orden consistente con el modelo de regresión)
                 host_response_rate,        # host_response_rate
                 host_accept_rate,          # host_acceptance_rate
                 lat,                       # latitude
@@ -594,7 +589,7 @@ def generate_price_map(
                 clean_score,               # review_scores_cleanliness
                 checkin_score,             # review_scores_checkin
                 comm_score,                # review_scores_communication
-                loc_score,                 # review_scores_location
+                rating,                    # review_scores_location (aprox)
                 value_score,               # review_scores_value
                 reviews_per_month,         # reviews_per_month
                 wifi,                      # Wifi
@@ -646,15 +641,15 @@ def generate_price_map(
 
     info = html.Div([
         html.Div([
-            html.Span("Precio Promedio: ", style={"fontWeight": "bold"}),
+            html.Span("Precio promedio: ", style={"fontWeight": "bold"}),
             html.Span(f"{precio_prom:.2f} €/noche", style={"color": "#4CAF50"}),
         ]),
         html.Div([
-            html.Span("Precio Mínimo: ", style={"fontWeight": "bold"}),
+            html.Span("Precio mínimo: ", style={"fontWeight": "bold"}),
             html.Span(f"{precio_min:.2f} €/noche"),
         ]),
         html.Div([
-            html.Span("Precio Máximo: ", style={"fontWeight": "bold"}),
+            html.Span("Precio máximo: ", style={"fontWeight": "bold"}),
             html.Span(f"{precio_max:.2f} €/noche"),
         ]),
     ])
@@ -662,11 +657,138 @@ def generate_price_map(
     return fig, info
 
 
+#Callback modelo de clasificación con redes neuronales
 
+@app.callback(
+    Output("class-probs-graph", "figure"),
+    Input("predict-button", "n_clicks"),
+    State("input-host_response_rate", "value"),
+    State("input-host_acceptance_rate", "value"),
+    State("input-accommodates", "value"),
+    State("input-bathrooms", "value"),
+    State("input-bedrooms", "value"),
+    State("input-beds", "value"),
+    State("input-minimum_nights", "value"),
+    State("input-maximum_nights", "value"),
+    State("input-availability_365d", "value"),
+    State("input-number_of_reviews", "value"),
+    State("input-rating", "value"),
+    State("input-review_scores_accuracy", "value"),
+    State("input-review_scores_cleanliness", "value"),
+    State("input-review_scores_checkin", "value"),
+    State("input-reviews_per_month", "value"),
+    State("amenities", "value"),
+    State("input-price", "value"),
+    State("input-estimated_revenue_l365d", "value"),
+    State("input-latitude", "value"),
+    State("input-longitude", "value"),
+    prevent_initial_call=True,
+)
+def actualizar_probabilidades(
+    n_clicks,
+    host_response_rate,
+    host_acceptance_rate,
+    accommodates,
+    bathrooms,
+    bedrooms,
+    beds,
+    minimum_nights,
+    maximum_nights,
+    availability_365,
+    number_of_reviews,
+    review_scores_rating,
+    review_scores_accuracy,
+    review_scores_cleanliness,
+    review_scores_checkin,
+    reviews_per_month,
+    amenities,
+    price_noche,
+    estimated_revenue_l365d,
+    latitude,
+    longitude,
+):
+    if amenities is None:
+        amenities = []
+
+    def flag(name):
+        return 1 if name in amenities else 0
+
+    wifi = flag("Wifi")
+    air_conditioning = flag("Air_conditioning")
+    kitchen_and_dining = flag("Kitchen_and_dining")
+    washer_dryer = flag("Washer_dryer")
+    tv = flag("TV")
+    safe = flag("Safe")
+    refrigerator = flag("Refrigerator")
+    smoke_alarm = flag("Smoke_alarm_home_safety")
+    essentials = flag("Essentials")
+    services = flag("Services")
+
+    # Derivados simples para las columnas que espera el modelo
+    estimated_occupancy_l365d = availability_365 * 0.7
+    review_scores_communication = review_scores_rating
+    review_scores_location = review_scores_rating
+    review_scores_value = review_scores_rating
+
+    # Diccionario EXACTO con las columnas del modelo de clasificación
+    sample = {
+        "id": np.array([0], dtype="int64"),
+        "host_response_rate": np.array([host_response_rate], dtype="float32"),
+        "host_acceptance_rate": np.array([host_acceptance_rate], dtype="float32"),
+        "latitude": np.array([latitude], dtype="float32"),
+        "longitude": np.array([longitude], dtype="float32"),
+        "accommodates": np.array([accommodates], dtype="float32"),
+        "bathrooms": np.array([bathrooms], dtype="float32"),
+        "bedrooms": np.array([bedrooms], dtype="float32"),
+        "beds": np.array([beds], dtype="float32"),
+        "price": np.array([price_noche], dtype="float32"),
+        "minimum_nights": np.array([minimum_nights], dtype="float32"),
+        "maximum_nights": np.array([maximum_nights], dtype="float32"),
+        "availability_365": np.array([availability_365], dtype="float32"),
+        "number_of_reviews": np.array([number_of_reviews], dtype="float32"),
+        "estimated_occupancy_l365d": np.array([estimated_occupancy_l365d], dtype="float32"),
+        "estimated_revenue_l365d": np.array([estimated_revenue_l365d], dtype="float32"),
+        "review_scores_rating": np.array([review_scores_rating], dtype="float32"),
+        "review_scores_accuracy": np.array([review_scores_accuracy], dtype="float32"),
+        "review_scores_cleanliness": np.array([review_scores_cleanliness], dtype="float32"),
+        "review_scores_checkin": np.array([review_scores_checkin], dtype="float32"),
+        "review_scores_communication": np.array([review_scores_communication], dtype="float32"),
+        "review_scores_location": np.array([review_scores_location], dtype="float32"),
+        "review_scores_value": np.array([review_scores_value], dtype="float32"),
+        "reviews_per_month": np.array([reviews_per_month], dtype="float32"),
+        "Wifi": np.array([wifi], dtype="int64"),
+        "Air_conditioning": np.array([air_conditioning], dtype="int64"),
+        "Kitchen_and_dining": np.array([kitchen_and_dining], dtype="int64"),
+        "Washer_dryer": np.array([washer_dryer], dtype="int64"),
+        "TV": np.array([tv], dtype="int64"),
+        "Safe": np.array([safe], dtype="int64"),
+        "Refrigerator": np.array([refrigerator], dtype="int64"),
+        "Smoke_alarm_home_safety": np.array([smoke_alarm], dtype="int64"),
+        "Essentials": np.array([essentials], dtype="int64"),
+        "Services": np.array([services], dtype="int64"),
+        "neighbourhood_cleansed": np.array([NEIGH_DEFAULT], dtype="str"),
+    }
+
+    p1 = float(modelo_clasificacion.predict(sample, verbose=0)[0, 0])
+    p0 = 1.0 - p1
+
+    fig = px.bar(
+        x=["Rating < 4.8", "Rating ≥ 4.8"],
+        y=[p0, p1],
+        labels={"x": "Clase", "y": "Probabilidad"},
+        range_y=[0, 1],
+    )
+    fig.update_layout(
+        title="Probabilidad de alta puntuación (clasificación)",
+        yaxis_tickformat=".0%",
+    )
+
+    return fig
 
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
     
 
