@@ -24,6 +24,7 @@ columnas = [
     "latitude",
     "bathrooms",
     "beds",
+    "price",
     "bedrooms",
     "accommodates",
     "minimum_nights",
@@ -63,6 +64,7 @@ input_config = {
     "host_response_rate": (0, 100, 0.1, "%"),
     "bathrooms": (0, 19, 1, ""),
     "beds": (0, 40, 1, ""),
+    "price": (7, 25654, 1, " USD"),
     "bedrooms": (0, 25, 1, ""),
     "accommodates": (1, 16, 1, " personas"),
     "minimum_nights": (1, 366, 1, " noches"),
@@ -99,11 +101,14 @@ input_config = {
 def elu_plus_one(x):
     return tf.keras.activations.elu(x) + 1.0
 
+#Definir ruta de los archivos 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Cargar modelo regresion
 modelo_regresion = tf.keras.models.load_model("modelo_airbnb.keras",custom_objects={"elu_plus_one": elu_plus_one},compile=False)
 
 #Cargar modelo clasificacion
-modelo_clasificacion = tf.keras.models.load_model("modelo_clasifacion_andes.keras",custom_objects={"elu_plus_one": elu_plus_one},compile=False)
+modelo_clasificacion = tf.keras.models.load_model(os.path.join(BASE_DIR, "modelo_clasificacion_andes.keras"),custom_objects={"elu_plus_one": elu_plus_one,"function": elu_plus_one,},compile=False,)
 
 #Definir la estructura del dash 
 app.layout = html.Div(
@@ -127,7 +132,7 @@ app.layout = html.Div(
                 "gap": "32px",
             },
             children=[
-                # --------- COLUMNA IZQUIERDA (CONTROLES) ----------
+                # Columna de entrada 
                 html.Div(
                     style={
                         "width": "35%",
@@ -414,11 +419,66 @@ app.layout = html.Div(
                                 ),
                             ],
                         ),
+                        
+                        html.Hr(),
+
+                        html.H4(
+                            "Predicción de rating (modelo de clasificación)",
+                            style={"marginTop": "14px"},
+                        ),
+
+                        html.Div(
+                            style={
+                                "border": "1px solid #e3e6ee",
+                                "borderRadius": "10px",
+                                "padding": "10px 12px",
+                            },
+                            children=[
+                                html.P(
+                                    "Esta sección usa el modelo de clasificación para estimar la "
+                                    "probabilidad de que el anuncio tenga rating alto (clase 1).",
+                                    style={"fontSize": "12px", "color": "#555"},
+                                ),
+
+                                html.Label("Latitud "),
+                                dcc.Input(
+                                    id="input-latitude",
+                                    type="number",
+                                    value=40.42,      
+                                    step=0.0001,
+                                    style={"width": "100%"},
+                                ),
+                                html.Br(), html.Br(),
+
+                                html.Label("Longitud "),
+                                dcc.Input(
+                                    id="input-longitude",
+                                    type="number",
+                                    value=-3.70,     
+                                    step=0.0001,
+                                    style={"width": "100%"},
+                                ),
+                                html.Br(), html.Br(),
+                                
+                                html.Label("Precio "),
+                                dcc.Input(
+                                    id="input-price-classification",
+                                    type="number",
+                                    value=20000,     
+                                    step=0.0001,
+                                    style={"width": "100%"},
+                                ),
+                                html.Br(), html.Br(),
+
+                
+                            ],
+                        ),
 
                         html.Br(),
 
+
                         html.Button(
-                            "Generar mapa de precios",
+                            "Generar predicción",
                             id="predict-button",
                             n_clicks=0,
                             style={
@@ -446,6 +506,7 @@ app.layout = html.Div(
                         "gap": "16px",
                     },
                     children=[
+                        #Mapa para predicción de precios
                         dcc.Graph(
                             id="price-map",
                             style={"height": "550px"},
@@ -458,6 +519,11 @@ app.layout = html.Div(
                                 "padding": "10px 14px",
                                 "fontSize": "14px",
                             },
+                        ),
+                        #Grafica de barras para la clasificación
+                        dcc.Graph(
+                        id="class-probs-graph",
+                        style={"height": "280px"},
                         ),
                     ],
                 ),
@@ -478,6 +544,8 @@ def score_location_from_coords(lat, lon):
        
         score = 5 - dist / 0.03
         return float(np.clip(score, 1.0, 5.0))
+
+#Callback para regresión con red neuronal
 
 @app.callback(
     [Output("price-map", "figure"),
@@ -528,7 +596,7 @@ def generate_price_map(
     if n_clicks == 0:
         fig = go.Figure()
         fig.update_layout(
-            title="Presiona 'Generar Mapa' para ver predicciones",
+            title="Presiona 'Generar predicción' para ver predicciones",
             xaxis_title="Longitud",
             yaxis_title="Latitud",
             height=600,
@@ -663,6 +731,153 @@ def generate_price_map(
     ])
 
     return fig, info
+
+# Callback para clasificación con red neuronal
+
+
+@app.callback(
+    Output("class-probs-graph", "figure"),
+    Input("predict-button", "n_clicks"),
+
+    # NUEVO: también usamos el tipo de propiedad
+    State("property-type", "value"),
+
+    # Estos son States que ya tienes en el layout
+    State("input-host_response_rate", "value"),
+    State("input-host_acceptance_rate", "value"),
+    State("input-accommodates", "value"),
+    State("input-bathrooms", "value"),
+    State("input-bedrooms", "value"),
+    State("input-beds", "value"),
+    State("input-price-classification", "value"),
+    State("input-minimum_nights", "value"),
+    State("input-maximum_nights", "value"),
+    State("input-availability_365d", "value"),
+    State("input-number_of_reviews", "value"),
+    State("input-rating", "value"),
+    State("input-review_scores_accuracy", "value"),
+    State("input-review_scores_cleanliness", "value"),
+    State("input-review_scores_checkin", "value"),
+    State("input-reviews_per_month", "value"),
+    State("amenities", "value"),
+    State("input-estimated_revenue_l365d", "value"),
+    State("input-latitude", "value"),
+    State("input-longitude", "value"),
+)
+def actualizar_probabilidades(
+    n_clicks,
+    prop_type,               # <-- nuevo
+    host_response_rate,
+    host_acceptance_rate,
+    accommodates,
+    bathrooms,               # no lo usamos en el modelo, pero lo dejamos en la firma
+    bedrooms,                # idem
+    beds,
+    price,
+    minimum_nights,
+    maximum_nights,
+    availability_365,
+    number_of_reviews,
+    review_scores_rating,    # ya no se usa para el modelo de clasificación
+    review_scores_accuracy,  # idem
+    review_scores_cleanliness,
+    review_scores_checkin,
+    reviews_per_month,
+    amenities,
+    estimated_revenue_l365d,
+    latitude,
+    longitude,
+):
+    # Primera vez: figura vacía
+    if n_clicks is None or n_clicks == 0:
+        fig = go.Figure()
+        fig.update_layout(
+            title="Probabilidad de rating alto (clasificación)",
+            xaxis_title="Clase",
+            yaxis_title="Probabilidad",
+            yaxis_range=[0, 1],
+        )
+        return fig
+
+    if amenities is None:
+        amenities = []
+
+    # Flags de amenidades
+    def flag(name):
+        return 1 if name in amenities else 0
+
+    wifi = flag("Wifi")
+    air_conditioning = flag("Air_conditioning")
+    kitchen_and_dining = flag("Kitchen_and_dining")
+    washer_dryer = flag("Washer_dryer")
+    safe = flag("Safe")
+    refrigerator = flag("Refrigerator")
+    essentials = flag("Essentials")
+    services = flag("Services")
+
+    # Tipo de propiedad -> one-hot (igual que en el mapa de precios)
+    if prop_type is None:
+        prop_type = "entire"
+
+    property_entire = 1 if prop_type == "entire" else 0
+    property_private = 1 if prop_type == "private" else 0
+    property_shared = 1 if prop_type == "shared" else 0
+    property_hotel = 1 if prop_type == "hotel" else 0
+    property_other = 1 if prop_type == "other" else 0
+
+    # Derivado para el modelo (lo usas también en regresión)
+    estimated_occupancy_l365d = availability_365 * 0.7
+
+    # Construir diccionario EXACTO que espera el modelo de clasificación
+    sample = {
+        "host_response_rate": np.array([host_response_rate], dtype="float32"),
+        "host_acceptance_rate": np.array([host_acceptance_rate], dtype="float32"),
+        "latitude": np.array([latitude], dtype="float32"),
+        "longitude": np.array([longitude], dtype="float32"),
+        "accommodates": np.array([accommodates], dtype="float32"),
+        "beds": np.array([beds], dtype="float32"),
+        "price": np.array([price], dtype="float32"),
+        "minimum_nights": np.array([minimum_nights], dtype="float32"),
+        "maximum_nights": np.array([maximum_nights], dtype="float32"),
+        "availability_365": np.array([availability_365], dtype="float32"),
+        "number_of_reviews": np.array([number_of_reviews], dtype="float32"),
+        "estimated_occupancy_l365d": np.array([estimated_occupancy_l365d], dtype="float32"),
+        "estimated_revenue_l365d": np.array([estimated_revenue_l365d], dtype="float32"),
+        "reviews_per_month": np.array([reviews_per_month], dtype="float32"),
+
+        "Wifi": np.array([wifi], dtype="int64"),
+        "Air_conditioning": np.array([air_conditioning], dtype="int64"),
+        "Kitchen_and_dining": np.array([kitchen_and_dining], dtype="int64"),
+        "Washer_dryer": np.array([washer_dryer], dtype="int64"),
+        "Safe": np.array([safe], dtype="int64"),
+        "Refrigerator": np.array([refrigerator], dtype="int64"),
+        "Essentials": np.array([essentials], dtype="int64"),
+        "Services": np.array([services], dtype="int64"),
+
+        "property_Entire_Place": np.array([property_entire], dtype="int64"),
+        "property_Hotel_Room": np.array([property_hotel], dtype="int64"),
+        "property_Other": np.array([property_other], dtype="int64"),
+        "property_Private_Room": np.array([property_private], dtype="int64"),
+        "property_Shared_Room": np.array([property_shared], dtype="int64"),
+    }
+
+    # Predicción del modelo de clasificación
+    p1 = float(modelo_clasificacion.predict(sample, verbose=0)[0, 0])
+    p0 = 1.0 - p1
+
+    fig = px.bar(
+        x=["Clase 0 (rating bajo)", "Clase 1 (rating alto)"],
+        y=[p0, p1],
+        labels={"x": "Clase", "y": "Probabilidad"},
+        range_y=[0, 1],
+    )
+    fig.update_layout(
+        title="Probabilidad de rating alto (modelo de clasificación)",
+        yaxis_tickformat=".0%",
+    )
+
+    return fig
+
 
 
 
