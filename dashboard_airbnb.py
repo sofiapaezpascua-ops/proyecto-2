@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 import dash
 from dash import dcc, html, Input, Output, State
 import tensorflow as tf
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler  # solo si escalas
+import numpy as np
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  
@@ -525,6 +528,14 @@ app.layout = html.Div(
                         id="class-probs-graph",
                         style={"height": "280px"},
                         ),
+                        #Grafica clusters
+                        dcc.Graph(
+                        id='cluster-scatter'
+                        ),
+                        html.Div(
+                        id='cluster-text',
+                        style={'marginTop': '10px', 'fontWeight': 'bold'}
+                        ),
                     ],
                 ),
             ],
@@ -878,7 +889,78 @@ def actualizar_probabilidades(
 
     return fig
 
+#Definir modelo de clasificación con K-means
 
+cluster_features = ["longitude", "latitude"]
+X_cluster = df[cluster_features]
+mask_valid = ~X_cluster.isna().any(axis=1)
+kmeans = KMeans(n_clusters=4, random_state=42)
+kmeans.fit(X_cluster[mask_valid])
+df["cluster"] = np.nan          
+df.loc[mask_valid, "cluster"] = kmeans.labels_.astype(int)
+
+# Callback para visualización de clusters K-Means
+@app.callback(
+    [Output('cluster-scatter', 'figure'),
+     Output('cluster-text', 'children')],
+    [Input('input-latitude', 'value'),
+     Input('input-longitude', 'value')]
+)
+def update_cluster_scatter(lat, lon):
+    
+    df_plot = df.dropna(subset=["longitude", "latitude", "cluster"]).copy()
+
+   
+    if lat is None or lon is None:
+        fig = px.scatter(
+            df_plot,
+            x="longitude",
+            y="latitude",
+            color="cluster",
+            title="Clusters K-Means de listings (longitude vs latitude)"
+        )
+        mensaje = "Ingresa una latitud y una longitud para clasificar el punto."
+        return fig, mensaje
+
+
+    point = np.array([[lon, lat]])
+    cluster_pred = int(kmeans.predict(point)[0])
+
+    df_plot["mismo_cluster"] = df_plot["cluster"] == cluster_pred
+
+    fig = px.scatter(
+        df_plot,
+        x="longitude",
+        y="latitude",
+        color="mismo_cluster",
+        color_discrete_map={
+            True: "royalblue",    
+            False: "lightgrey"    
+        },
+        labels={
+            "mismo_cluster": "¿Mismo cluster que el punto?"
+        },
+        title=f"Clusters K-Means de listings · Punto usuario → Cluster {cluster_pred}"
+    )
+
+    fig.add_scatter(
+        x=[lon],
+        y=[lat],
+        mode="markers+text",
+        marker=dict(
+            size=12,
+            symbol="x",
+            color="red",
+            line=dict(width=2, color="black")
+        ),
+        text=["Punto usuario"],
+        textposition="top center",
+        name="Punto usuario"
+    )
+
+    mensaje = f"La coordenada ingresada pertenece al cluster {cluster_pred}."
+
+    return fig, mensaje
 
 
 
