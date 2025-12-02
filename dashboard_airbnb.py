@@ -111,7 +111,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 modelo_regresion = tf.keras.models.load_model("modelo_airbnb.keras",custom_objects={"elu_plus_one": elu_plus_one},compile=False)
 
 #Cargar modelo clasificacion
-modelo_clasificacion = tf.keras.models.load_model(os.path.join(BASE_DIR, "modelo_clasificacion_andes.keras"),custom_objects={"elu_plus_one": elu_plus_one,"function": elu_plus_one,},compile=False,)
+modelo_clasificacion = tf.keras.models.load_model(os.path.join(BASE_DIR, "red_clasificacion.keras"),custom_objects={"elu_plus_one": elu_plus_one,"function": elu_plus_one,},compile=False,)
 
 #Definir la estructura del dash 
 app.layout = html.Div(
