@@ -107,11 +107,22 @@ def elu_plus_one(x):
 #Definir ruta de los archivos 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Cargar modelo regresion
-modelo_regresion = tf.keras.models.load_model("modelo_airbnb.keras",custom_objects={"elu_plus_one": elu_plus_one},compile=False)
+# Ruta base
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-#Cargar modelo clasificacion
-modelo_clasificacion = tf.keras.models.load_model(os.path.join(BASE_DIR, "red_clasificacion.keras"),custom_objects={"elu_plus_one": elu_plus_one,"function": elu_plus_one,},compile=False,)
+# modelo regresión
+modelo_regresion = tf.keras.models.load_model(
+    os.path.join(BASE_DIR, "modelo_airbnb.keras"),
+    custom_objects={"elu_plus_one": elu_plus_one},
+    compile=False
+)
+
+# modelo clasificación
+modelo_clasificacion = tf.keras.models.load_model(
+    os.path.join(BASE_DIR, "red_clasificacion.keras"),
+    custom_objects={"elu_plus_one": elu_plus_one},
+    compile=False
+)
 
 #Definir la estructura del dash 
 app.layout = html.Div(
