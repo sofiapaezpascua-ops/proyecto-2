@@ -12,6 +12,5 @@ COPY red_clasificacion.keras .
 COPY listings_limpio.csv .
 
 # final configuration
-ENV FLASK_APP=hello
-EXPOSE 8000
+EXPOSE 15000
 CMD flask run --host 0.0.0.0 --port 15000
